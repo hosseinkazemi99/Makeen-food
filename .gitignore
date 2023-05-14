@@ -1,0 +1,6 @@
+.env
+venv
+media
+myenv
+db.sqlite3
+.idea
