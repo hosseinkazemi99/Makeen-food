@@ -1,6 +1,14 @@
-.env
-venv
 media
-myenv
 db.sqlite3
 .idea
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env
+
+# VS Code
+.vscode/
