@@ -117,7 +117,7 @@ class UpdateCartItem(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class CancleCartItem(APIView):
+class CancelCartItem(APIView):
     permission_classes = [IsUserOrReadOnly]
 
     def delete(self, request, id):

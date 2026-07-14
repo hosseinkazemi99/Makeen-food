@@ -22,29 +22,27 @@ class LoginUserSerializer(serializers.Serializer):
 
         return attrs
 
-
 class ShowMenuSerializer(serializers.ModelSerializer):
     date = serializers.SerializerMethodField()
     food_name = serializers.CharField(source='food.name')
-
-    def get_date(self, obj):
-        return jdate.fromgregorian(date=datetime.strptime(str(obj.date), '%Y-%m-%d')).strftime('%Y-%m-%d')
+    image = serializers.ImageField(source="food.image", read_only=True)
+    price = serializers.IntegerField(source="food.price", read_only=True)
 
     class Meta:
         model = MenuModel
         fields = ('id', 'food_name', 'food', 'date', 'day_of_week', 'number', 'image', 'price')
+
+    def get_date(self, obj):
+        return jdate.fromgregorian(date=datetime.strptime(str(obj.date), '%Y-%m-%d')).strftime('%Y-%m-%d')
+
 class ShowOrderSerializer(serializers.ModelSerializer):
-    menu_food_name = serializers.CharField(source='menu.food.name')
+    menu_food_name = serializers.CharField(source='menu.food.name',read_only=True)
     date = serializers.SerializerMethodField()
-    quantity = serializers.IntegerField()
-    total_price = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
         fields = ('menu_food_name', 'date', 'quantity', 'total_price')
 
-    def get_total_price(self, obj):
-        return obj.total_price
 
     def get_date(self, obj):
         return jdatetime.fromgregorian(date=obj.menu.date).strftime('%Y-%m-%d')
@@ -53,7 +51,6 @@ class CartItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
         fields = ('id', 'menu', 'price', 'quantity', 'total_price')
-
 
 class GetCartSerializer(serializers.ModelSerializer):
     user = serializers.CharField(source='user.username')
@@ -65,7 +62,6 @@ class GetCartSerializer(serializers.ModelSerializer):
 
 class UpdateCartItemSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(min_value=1, max_value=40)
-
 
 class CreateCartItemSerializer(serializers.Serializer):
     menu_id = serializers.IntegerField()
@@ -80,7 +76,6 @@ class CreateCartItemSerializer(serializers.Serializer):
         if menu.number - quantity < 0 :
             raise serializers.ValidationError("غذا به این تعداد موجود نیست")
         return attrs
-
 
 class ShowAllCartItemSerializer(serializers.ModelSerializer):
     menu = serializers.CharField(source='menu.food.name')
@@ -109,9 +104,6 @@ class WalletSerializer(serializers.Serializer):
                 'timestamp': j_timestamp,
             })
         return transaction_data
-
-
-
 
 class PaymentSerializer(serializers.Serializer):
     order_number = serializers.IntegerField(min_value=1000000,max_value=9999999)

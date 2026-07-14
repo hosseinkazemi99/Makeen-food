@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import LoginUser, ShowMenu, GetCart, CreateCartItem, WalletDetail, ShowAllCartItem, CancleCartItem, \
+from .views import LoginUser, ShowMenu, GetCart, CreateCartItem, WalletDetail, ShowAllCartItem, CancelCartItem, \
     UpdateCartItem, NextPayCreatePayment,PaymentCallbackView, ShowOrder
 
 app_name = 'user_panel'
@@ -12,8 +12,8 @@ urlpatterns = [
     path('show-order-user/', ShowOrder.as_view(), name='show-order-user'),
     path('walletdetail-user/', WalletDetail.as_view(), name='walletdetail-user'),
     path('allcartitem-user/', ShowAllCartItem.as_view(), name='showallcartitem-user'),
-    path('canclecartitem-user/<int:id>/', CancleCartItem.as_view(), name='canclecartitem-user'),
-    path('updatecartitem-user/<int:id>/', UpdateCartItem.as_view(), name='updatecartitem-user'),
+    path('canclecartitem-user/<int:id>/', CancelCartItem.as_view(), name='cancel_cart_item-user'),
+    path('updatecartitem-user/<int:id>/', UpdateCartItem.as_view(), name='update_cart_item-user'),
     path('createtransid/',NextPayCreatePayment.as_view(), name='transid'),
     path('peymentcallback/',PaymentCallbackView.as_view(), name='paymentcallback'),
 ]

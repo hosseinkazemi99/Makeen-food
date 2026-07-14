@@ -5,20 +5,20 @@ from django.db import models
 
 
 class UserModelManager(BaseUserManager):
-    def create_user(self, username, password=None):
+    def create_user(self, username, password=None, **extra_fields):
 
         if not username:
             raise ValueError("Users must have an email address")
 
         else:
-            user = self.model(username=username)
+            user = self.model(username=username, **extra_fields)
             user.set_password(password)
             user.save()
             return user
 
-    def create_superuser(self, username, password):
+    def create_superuser(self, username, password, **extra_fields):
 
-        user = self.create_user(username, password=password, )
+        user = self.create_user(username, password=password, **extra_fields)
         user.is_staff = True
         user.is_admin = True
         user.save()
@@ -26,11 +26,9 @@ class UserModelManager(BaseUserManager):
 
 
 class UserModel(AbstractBaseUser):
-    username = models.CharField(max_length=255, unique=True, )
+    username = models.CharField(max_length=255, unique=True)
     name = models.CharField(max_length=100)
-    # rank = models.ForeignKey(Rank, on_delete=models.PROTECT, null=True)
     rank = models.CharField(max_length=50, null=True)
-    # package = models.ForeignKey(Package, on_delete=models.PROTECT, null=True)
     package = models.CharField(max_length=50, null=True)
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)

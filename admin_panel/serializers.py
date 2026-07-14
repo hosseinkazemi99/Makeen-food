@@ -1,115 +1,89 @@
-# from time import timezone
 from django.utils import timezone
-from user_panel.models import UserModel, UserModelManager
+from user_panel.models import UserModel
 from rest_framework import serializers
 from .models import Food, MenuModel
-import datetime
-from datetime import date, timedelta
 import jdatetime
-from jdatetime import datetime as qq
 
 
-class LoginSerializer(serializers.Serializer):
+class LoginPanelApiViewSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=100)
     password = serializers.CharField(max_length=100)
 
-    def validate(self, data):
-        username = data.get('username')
-        password = data.get('password')
+class CreateAdminApiViewSerializer(serializers.Serializer):
+    username = serializers.CharField()
 
-        if username and password:
-            return data
-        raise serializers.ValidationError('Invalid username or password')
+    def save(self):
+        try:
+            user = UserModel.objects.get(username=self.validated_data["username"])
+        except UserModel.DoesNotExist:
+            raise serializers.ValidationError("User does not exist.")
 
-
-# class AdminUserSerializer(serializers.ModelSerializer):
-#     username = serializers.CharField(max_length=100)
-#     password = serializers.CharField(max_length=150, write_only=False)
-#     name = serializers.CharField(max_length=150, default=None)
-#     rank = serializers.CharField(max_length=40, default='Admin')
-#
-#     class Meta:
-#         model = UserModel
-#         fields = ('username', 'password', 'name ', 'rank')
-#
-#     def create(self, validated_data):
-#         user = UserModel.objects.create_user(
-#             username=validated_data['username'],
-#             password=validated_data['password'],
-#         )
-#         user.name = validated_data['name']
-#         user.is_staff = True
-#         user.is_admin = True
-#         user.save()
-#         return user
-class AdminUserSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(max_length=100)
-    password = serializers.CharField(max_length=150, write_only=True)
-    name = serializers.CharField(max_length=150, default=None)
-
-    class Meta:
-        model = UserModel
-        fields = ('username', 'password', 'name')
-
-    def validate_username(self, value):
-        if UserModel.objects.filter(username=value).exists():
-            raise serializers.ValidationError("A user with this username already exists.")
-        return value
-
-    def create(self, validated_data):
-        user = UserModel.objects.create_user(
-            username=validated_data['username'],
-            password=validated_data['password'],
-        )
-        user.name = validated_data['name']
         user.is_staff = True
         user.is_admin = True
         user.save()
+
         return user
 
-
-class CreateUserSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=100)
-    username = serializers.CharField(max_length=30)
-    password = serializers.CharField(max_length=100)
-    rank = serializers.CharField(max_length=100)
-    package = serializers.CharField(max_length=100)
-
-    def create(self, validated_data):
-        user = UserModel.objects.create(
-            name=validated_data['name'],
-            username=validated_data['username'],
-            rank=validated_data['rank'],
-            package=validated_data['package'],
-            password=validated_data['password']
-        )
-
-        user.save()
-        return user
-
-
-class DeleteUserSerializer(serializers.Serializer):
-    def update(self, instance, validated_data):
-        instance.on_deleted = True
-        instance.save()
-        return instance
-
-
-class UsersSerializers(serializers.Serializer):
-    id = serializers.IntegerField()
-    name = serializers.CharField(max_length=100)
-    username = serializers.CharField(max_length=100)
-    password = serializers.CharField(max_length=100)
-    rank = serializers.CharField(max_length=100)
-    package = serializers.CharField(max_length=100)
-    on_deleted = serializers.BooleanField()
-
+class CreateUserApiViewSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserModel
-        fields = ('id', 'name', 'username', 'password', 'rank', 'package', 'on_deleted')
+        fields = ("name", "username", "password", "rank", "package",)
+        extra_kwargs = {
+            "password": {"write_only": True}
+        }
 
+    def create(self, validated_data):
+        return UserModel.objects.create_user(**validated_data)
 
-class OrderReportSerializer(serializers.Serializer):
+class AllUsersApiViewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserModel
+        fields = ("id", "name", "username", "rank", "package",)
+        extra_kwargs = {
+            "password": {"write_only": True}
+        }
+
+class OrderReportApiViewSerializer(serializers.Serializer):
+    start_date = serializers.CharField(max_length=10)
+    end_date = serializers.CharField(max_length=10)
+
+    def validate(self, attrs):
+        try:
+            start_date = jdatetime.datetime.strptime(attrs["start_date"], "%Y-%m-%d").togregorian().date()
+            end_date = jdatetime.datetime.strptime(attrs["end_date"], "%Y-%m-%d").togregorian().date()
+
+        except ValueError:
+            raise serializers.ValidationError("Invalid date format.")
+
+        if start_date > end_date:
+            raise serializers.ValidationError("start_date must be before end_date.")
+
+        attrs["start_date"] = start_date
+        attrs["end_date"] = end_date
+
+        return attrs
+
+class OrderReportResultApiViewSerializer(serializers.ModelSerializer):
+    food = serializers.CharField(source="food.name")
+    date = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MenuModel
+        fields = (
+            "id",
+            "date",
+            "day_of_week",
+            "food",
+            "number",
+            "quantity",
+        )
+
+    def get_date(self, obj):
+        return jdatetime.datetime.fromgregorian(
+            date=obj.date
+        ).strftime("%Y-%m-%d")
+
+class FinancialReportApiViewSerializer(serializers.Serializer):
     start_date = serializers.CharField(max_length=10)
     end_date = serializers.CharField(max_length=10)
 
@@ -130,45 +104,14 @@ class OrderReportSerializer(serializers.Serializer):
 
         return data
 
+class FinancialReportResponseApiViewSerializer(serializers.Serializer):
+    total_sell = serializers.IntegerField()
+    total_quantity = serializers.IntegerField()
 
-class FinancialReportSerializer(serializers.Serializer):
-    start_date = serializers.CharField(max_length=10)
-    end_date = serializers.CharField(max_length=10)
-
-    def validate(self, data):
-        start_date_str = data.get("start_date")
-        end_date_str = data.get("end_date")
-
-        start_date_j = jdatetime.datetime.strptime(start_date_str, '%Y-%m-%d')
-        end_date_j = jdatetime.datetime.strptime(end_date_str, '%Y-%m-%d')
-        start_date_g = start_date_j.togregorian()
-        end_date_g = end_date_j.togregorian()
-
-        data['start_date'] = start_date_g.strftime('%Y-%m-%d')
-        data['end_date'] = end_date_g.strftime('%Y-%m-%d')
-
-        if start_date_g > end_date_g:
-            raise serializers.ValidationError("start date must be before end date")
-
-        return data
-
-    # def validate(self, data):
-    #     start_date = data.get("start_date")
-    #     end_date = data.get("end_date")
-    #     if start_date >= end_date:
-    #         raise serializers.ValidationError("start date must be before end date")
-    #     yesterday = date.today() - timedelta(days=1)
-    #     if end_date > yesterday:
-    #         raise serializers.ValidationError("end date must be before today")
-    #     return data
-
-
-class CreateMenuSerializer(serializers.Serializer):
+class CreateMenuApiViewSerializer(serializers.Serializer):
     food_id = serializers.IntegerField()
     date = serializers.CharField(max_length=50)
     number = serializers.IntegerField()
-
-
 
     def validate(self, data):
         date = data.get('date')
@@ -189,58 +132,19 @@ class CreateMenuSerializer(serializers.Serializer):
             menu.save()
             return menu
         else:
-            raise serializers.ValidationError("menu allready exists for this date or food not define")
+            raise serializers.ValidationError("menu already exists for this date or food not define")
 
-
-
-class CreateFoodSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=100)
-    price = serializers.IntegerField()
-    image = serializers.ImageField()
-
-    def create(self, validated_data):
-        food = Food.objects.create(
-            name=validated_data['name'],
-            price=validated_data['price'],
-            image=validated_data['image']
-        )
-        food.save()
-        return food
-
-
-class FoodsSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    name = serializers.CharField(max_length=100)
-    price = serializers.IntegerField()
-    image = serializers.ImageField()
-    created_at = serializers.DateField()
-    modify_at = serializers.DateField()
-
+class CreateFoodApiViewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Food
-        fields = ('id', 'name', 'price', 'image', 'created_at', 'modify_at')
+        fields = ("name", "price", "image")
 
+class AllFoodsApiViewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Food
+        fields = ("id", "name", "price", "image")
 
-class DeleteFoodSerializer(serializers.Serializer):
-    def update(self, instance, validated_data):
-        instance.on_deleted = True
-        instance.save()
-        return instance
-
-
-class DeleteMenuSerializer(serializers.Serializer):
-    def update(self, instance, validated_data):
-        instance.on_deleted = True
-        instance.save()
-        return instance
-
-
-class UpdateFoodSerializer(serializers.Serializer):
-    price = serializers.IntegerField()
-
-    def update(self, instance, validated_data):
-        instance.name = validated_data.get('name', instance.name)
-        instance.price = validated_data.get('price', instance.price)
-        instance.image = validated_data.get('image', instance.image)
-        instance.save()
-        return instance
+class UpdateFoodApiViewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Food
+        fields = ("name", "price", "image")
