@@ -1,19 +1,17 @@
 from django.urls import path
-from .views import LoginUser, ShowMenu, GetCart, CreateCartItem, WalletDetail, ShowAllCartItem, CancelCartItem, \
-    UpdateCartItem, NextPayCreatePayment,PaymentCallbackView, ShowOrder
+from . import views 
 
 app_name = 'user_panel'
 
 urlpatterns = [
-    path('login-user/', LoginUser.as_view(), name='loginuser'),
-    path('menu-user/', ShowMenu.as_view(), name='menu-user'),
-    path('cart-user/', GetCart.as_view(), name='get_cart-user'),
-    path('create-cartitem/', CreateCartItem.as_view(), name='createcartitem-user'),
-    path('show-order-user/', ShowOrder.as_view(), name='show-order-user'),
-    path('walletdetail-user/', WalletDetail.as_view(), name='walletdetail-user'),
-    path('allcartitem-user/', ShowAllCartItem.as_view(), name='showallcartitem-user'),
-    path('canclecartitem-user/<int:id>/', CancelCartItem.as_view(), name='cancel_cart_item-user'),
-    path('updatecartitem-user/<int:id>/', UpdateCartItem.as_view(), name='update_cart_item-user'),
-    path('createtransid/',NextPayCreatePayment.as_view(), name='transid'),
-    path('peymentcallback/',PaymentCallbackView.as_view(), name='paymentcallback'),
+    path('menu-user/', views.ShowMenuApiView.as_view(), name='menu-user'),
+    path('cart-user/', views.GetCartApiView.as_view(), name='get_cart-user'),
+    path('create-cart-item/', views.CreateCartItemApiView.as_view(), name='create-cart-item-user'),
+    path('show-order-user/', views.ShowOrderApiView.as_view(), name='show-order-user'),
+    path('wallet-detail-user/', views.WalletDetailApiView.as_view(), name='wallet-detail-user'),
+    path('all-cart-item-user/', views.ShowAllCartItemApiView.as_view(), name='show-all-cart-item-user'),
+    path('cancel-cart-item-user/<int:pk>/', views.CancelCartItemApiView.as_view(), name='cancel_cart_item-user'),
+    path('update-cart-item-user/<int:pk>/', views.UpdateCartItemApiView.as_view(), name='update_cart_item-user'),
+    path('create-trans-id/',views.NextPayCreatePaymentApiView.as_view(), name='transid'),
+    path('payment-callback/',views.PaymentCallbackViewApiView.as_view(), name='payment-callback'),
 ]

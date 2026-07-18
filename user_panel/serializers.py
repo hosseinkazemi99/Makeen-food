@@ -2,14 +2,12 @@ from rest_framework import serializers
 from admin_panel.models import MenuModel
 import jdatetime
 from datetime import timedelta
-
 from jdatetime import date as jdate
-from jdatetime import datetime as jdatetime
-from datetime import datetime
+from jdatetime import datetime as jalalidatetime
+
 from .models import CartItem, Cart, UserModel, Wallet, Transaction, Payment
 
-
-class LoginUserSerializer(serializers.Serializer):
+class LoginUserApiViewSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=50)
     password = serializers.CharField(max_length=100)
 
@@ -22,20 +20,19 @@ class LoginUserSerializer(serializers.Serializer):
 
         return attrs
 
-class ShowMenuSerializer(serializers.ModelSerializer):
+class ShowMenuApiViewSerializer(serializers.ModelSerializer):
     date = serializers.SerializerMethodField()
     food_name = serializers.CharField(source='food.name')
     image = serializers.ImageField(source="food.image", read_only=True)
-    price = serializers.IntegerField(source="food.price", read_only=True)
 
     class Meta:
         model = MenuModel
-        fields = ('id', 'food_name', 'food', 'date', 'day_of_week', 'number', 'image', 'price')
+        fields = ('id', 'food_name', 'date', 'day_of_week', 'number', 'image', 'price')
 
     def get_date(self, obj):
-        return jdate.fromgregorian(date=datetime.strptime(str(obj.date), '%Y-%m-%d')).strftime('%Y-%m-%d')
+        return jdate.fromgregorian(date=obj.date).strftime("%Y-%m-%d")
 
-class ShowOrderSerializer(serializers.ModelSerializer):
+class ShowOrderApiViewSerializer(serializers.ModelSerializer):
     menu_food_name = serializers.CharField(source='menu.food.name',read_only=True)
     date = serializers.SerializerMethodField()
 
@@ -43,67 +40,91 @@ class ShowOrderSerializer(serializers.ModelSerializer):
         model = CartItem
         fields = ('menu_food_name', 'date', 'quantity', 'total_price')
 
-
     def get_date(self, obj):
-        return jdatetime.fromgregorian(date=obj.menu.date).strftime('%Y-%m-%d')
+        return jalalidatetime.fromgregorian(date=obj.menu.date).strftime('%Y-%m-%d')
 
-class CartItemSerializer(serializers.ModelSerializer):
+class CartItemApiViewSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
         fields = ('id', 'menu', 'price', 'quantity', 'total_price')
 
-class GetCartSerializer(serializers.ModelSerializer):
-    user = serializers.CharField(source='user.username')
+class GetCartApiViewSerializer(serializers.ModelSerializer):
+    user = serializers.CharField(source='user.username', read_only=True)
     total_price = serializers.ReadOnlyField()
 
     class Meta:
         model = Cart
         fields = ('user', 'is_paid', 'total_price')
 
-class UpdateCartItemSerializer(serializers.Serializer):
-    quantity = serializers.IntegerField(min_value=1, max_value=40)
+class UpdateCartItemApiViewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartItem
+        fields = ("quantity",)
 
-class CreateCartItemSerializer(serializers.Serializer):
-    menu_id = serializers.IntegerField()
-    quantity = serializers.IntegerField(min_value=1)
+    def validate_quantity(self, value):
+        menu = self.instance.menu
+
+        if value > menu.number:
+            raise serializers.ValidationError(
+                "غذا به این تعداد موجود نیست."
+            )
+
+        return value
+
+class CreateCartItemApiViewSerializer(serializers.ModelSerializer):
+    menu_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = CartItem
+        fields = ("menu_id", "quantity")
+
     def validate(self, attrs):
-        quantity = attrs.get("quantity")
-        menu_id = attrs.get("menu_id")
-        menu = MenuModel.objects.filter(id=menu_id).exists()
-        if not menu:
-            raise serializers.ValidationError('menu id is not define')
-        menu = MenuModel.objects.get(id=menu_id)
-        if menu.number - quantity < 0 :
-            raise serializers.ValidationError("غذا به این تعداد موجود نیست")
+        try:
+            menu = MenuModel.objects.get(id=attrs["menu_id"], on_deleted=False,)
+        except MenuModel.DoesNotExist:
+            raise serializers.ValidationError("Menu not found.")
+
+        if menu.number < attrs["quantity"]:
+            raise serializers.ValidationError("غذا به این تعداد موجود نیست.")
+
+        attrs["menu"] = menu
         return attrs
 
-class ShowAllCartItemSerializer(serializers.ModelSerializer):
-    menu = serializers.CharField(source='menu.food.name')
+    def create(self, validated_data):
+        menu = validated_data.pop("menu")
+        validated_data.pop("menu_id")
+        cart, _ = Cart.objects.get_or_create(user=self.context["request"].user, is_paid=False,)
+        return CartItem.objects.create(cart=cart, menu=menu, price=menu.price, **validated_data,)
+
+class ShowAllCartItemApiViewSerializer(serializers.ModelSerializer):
+    menu = serializers.CharField(source='menu.food.name', read_only=True)
 
     class Meta:
         model = CartItem
         fields = ('id','menu', 'quantity', 'price', 'total_price')
 
-class WalletSerializer(serializers.Serializer):
-    wallet = serializers.SerializerMethodField()
-    transactions = serializers.SerializerMethodField()
+class TransactionApiViewSerializer(serializers.ModelSerializer):
+    timestamp = serializers.SerializerMethodField()
 
-    def get_wallet(self, obj):
-        return {
-            'balance': obj['wallet'].balance,
-        }
+    class Meta:
+        model = Transaction
+        fields = ("type", "amount", "timestamp")
 
-    def get_transactions(self, obj):
-        transaction_data = []
-        for transaction in obj['transactions']:
-            timestamp = transaction.timestamp + timedelta(hours=3, minutes=30)
-            j_timestamp = jdatetime.datetime.fromgregorian(datetime=timestamp).strftime('%Y-%m-%d %H:%M:%S')
-            transaction_data.append({
-                'type': transaction.type,
-                'amount': transaction.amount,
-                'timestamp': j_timestamp,
-            })
-        return transaction_data
+    def get_timestamp(self, obj):
+        timestamp = obj.timestamp + timedelta(hours=3, minutes=30)
+        return jdatetime.datetime.fromgregorian(
+            datetime=timestamp
+        ).strftime("%Y-%m-%d %H:%M:%S")
 
-class PaymentSerializer(serializers.Serializer):
+class WalletApiViewSerializer(serializers.ModelSerializer):
+    transactions = TransactionApiViewSerializer(
+        many=True,
+        read_only=True,
+    )
+
+    class Meta:
+        model = Wallet
+        fields = ("balance", "transactions")
+
+class PaymentApiViewSerializer(serializers.Serializer):
     order_number = serializers.IntegerField(min_value=1000000,max_value=9999999)

@@ -8,11 +8,10 @@ from drf_spectacular.utils import extend_schema
 from django.contrib.auth import authenticate
 
 from user_panel.models import UserModel
-from .permissions import IsAdminOrReadOnly, IsAdmin
+from .permissions import IsAdmin
 from .pagination import OrderReportPagination, AllUsersPagination, AllFoodsPagination
 from . import serializers 
 from .models import MenuModel, Food
-
 
 
 class LoginPanelApiView(generics.GenericAPIView):
