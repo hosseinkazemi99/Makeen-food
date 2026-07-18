@@ -63,4 +63,4 @@ uritemplate==4.1.1
 urllib3==1.26.15
 vine==5.0.0
 wcwidth==0.2.6
-drf-spectacular==0.30.0
+gunicorn==26.0.0

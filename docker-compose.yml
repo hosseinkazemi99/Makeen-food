@@ -1,16 +1,13 @@
 services:
+
   postgres:
     image: postgres:16
-    container_name: postgres
-    restart: always
+    container_name: makeen_postgres
 
     environment:
       POSTGRES_DB: ${POSTGRES_NAME}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
-    ports:
-      - "5432:5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -18,40 +15,61 @@ services:
     networks:
       - main
 
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_NAME}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    restart: always
 
 
   app:
     build: .
+
     container_name: makeen_app
-    restart: always
 
     command: >
       sh -c "
       python manage.py migrate &&
-      python manage.py runserver 0.0.0.0:8000
+      gunicorn Food.wsgi:application --bind 0.0.0.0:8000
       "
-
-    volumes:
-      - .:/code
-      - media:/code/media
-
-    ports:
-      - "8000:8000"
 
     env_file:
       - .env
 
+    volumes:
+      - .:/code
+      - media_data:/code/media
+
+    expose:
+      - "8000"
+
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
 
     networks:
       - main
+
+    restart: always
+
+
+
+  nginx:
+    image: nginx:latest
+
+    container_name: makeen_nginx
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - media_data:/code/media
+
+    depends_on:
+      - app
+
+    networks:
+      - main
+
+    restart: always
+
 
 
 networks:
@@ -60,4 +78,5 @@ networks:
 
 volumes:
   postgres_data:
-  media:
+
+  media_data:
