@@ -10,6 +10,14 @@ The system allows administrators to manage foods and menus, while users can brow
 
 # Features
 
+## Live Demo
+
+The project is deployed on a server and can be tested through the following API documentation:
+
+Swagger UI:
+http://185.173.106.225/api/swagger/
+
+
 ## Authentication
 
 * Custom User Model
